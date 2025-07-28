@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Find My Product - AI Recommender</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <header>
+      <nav>
+          <div class="logo">
+              <span>AI Recommender</span>
+          </div>
+          <ul>
+              <li><a href="index.html">Home</a></li>
+              <li><a href="about.html">About</a></li>
+              <li><a href="signin.html">Sign In</a></li>
+              <li><a href="find.html" class="active">Find My Product</a></li>
+          </ul>
+      </nav>
+  </header>
+
+  <section class="finder">
+      <h1>Find Your Perfect Tech Match</h1>
+      
+      <label for="productType">Select a Product:</label>
+      <select id="productType" class="styled-dropdown">
+          <option value="phone">Phone</option>
+          <option value="laptop">Laptop</option>
+          <option value="smartwatch">Smartwatch</option>
+      </select>
+
+      <div id="questionsContainer"></div>
+      
+      <button id="findMatch" class="submit-btn">Find Best Match</button>
+
+      <div id="resultsContainer"></div>
+  </section>
+</body>
+</html>
