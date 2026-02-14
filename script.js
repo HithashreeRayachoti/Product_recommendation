@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             if (type === "dropdown") {
                 const select = document.createElement("select");
-                select.name = question.replace(/\s+/g, "").toLowerCase();
+                select.name = question.replace(/\s+/g, "").replace(/\?/g, "").toLowerCase();
 
                 options.forEach(option => {
                     const optionElement = document.createElement("option");
@@ -163,10 +163,13 @@ document.addEventListener("DOMContentLoaded", function () {
                     }
                 });
 
-                // Sort by highest score
-                filteredProducts.sort((a, b) => b.score - a.score);
+                // Sort by highest score, then by price (closer to budget) as tie-breaker
+                filteredProducts.sort((a, b) => {
+                    if (b.score !== a.score) return b.score - a.score;
+                    return a.price - b.price;
+                });
 
-                // Pick the best match
+                // Pick the best match (top of sorted list)
                 let bestMatch = filteredProducts[0];
 
                 resultsContainer.innerHTML = "<h2>Recommended Product:</h2>";
