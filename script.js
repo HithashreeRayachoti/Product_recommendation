@@ -17,7 +17,6 @@ document.addEventListener("DOMContentLoaded", function () {
             { question: "What will you use the laptop for?", type: "dropdown", options: ["Gaming", "Work", "School", "Video Editing"] },
             { question: "What is your preferred screen size?", type: "dropdown", options: ["13-inch", "15-inch", "17-inch", "No Preference"] },
             { question: "How much RAM do you need?", type: "dropdown", options: ["8GB", "16GB", "32GB", "64GB+"] },
-        ,
             { question: "How important is battery life to you?", type: "dropdown", options: ["Very Important", "Moderate", "Not Important"] }
         ],
         smartwatch: [
@@ -69,27 +68,98 @@ document.addEventListener("DOMContentLoaded", function () {
                     return;
                 }
 
-                // Collect user-selected answers
+                // Collect user-selected answers (key = question text with no spaces, lowercased)
                 let userChoices = {};
                 document.querySelectorAll("#questionsContainer select").forEach(select => {
                     userChoices[select.name] = select.value;
                 });
 
-                // Score products based on how well they match user choices
+                // Helper: check if product price falls within user's budget range
+                function priceInBudget(price, budgetOption, category) {
+                    if (!budgetOption) return false;
+                    const ranges = {
+                        phone: { "< $300": [0, 300], "$300 - $600": [300, 600], "$600 - $1000": [600, 1000], "$1000+": [1000, Infinity] },
+                        laptop: { "< $500": [0, 500], "$500 - $1000": [500, 1000], "$1000 - $1500": [1000, 1500], "$1500+": [1500, Infinity] },
+                        smartwatch: { "< $100": [0, 100], "$100 - $300": [100, 300], "$300 - $600": [300, 600], "$600+": [600, Infinity] }
+                    };
+                    const range = ranges[category] && ranges[category][budgetOption];
+                    if (!range) return false;
+                    return price >= range[0] && price <= range[1];
+                }
+
+                // Score products based on how well they match user choices (category-specific)
                 filteredProducts.forEach(product => {
                     product.score = 0;
 
-                    if (userChoices["whatisyourbudget"] && product.priceRange === userChoices["whatisyourbudget"]) {
-                        product.score += 2; // Higher weight for budget match
+                    // Budget match (all categories) – products have "price", not "priceRange"
+                    if (priceInBudget(product.price, userChoices["whatisyourbudget"], selectedCategory)) {
+                        product.score += 2;
                     }
-                    if (userChoices["howmuchramdoyouneed"] && product.ram === userChoices["howmuchramdoyouneed"]) {
-                        product.score += 1;
+
+                    if (selectedCategory === "phone") {
+                        // Priority: Camera, Battery, Display, Performance – products have priority[] e.g. ["camera","battery"]
+                        const priority = userChoices["whatisyourtoppriority"];
+                        if (priority && product.priority) {
+                            const want = priority.toLowerCase();
+                            if (product.priority.some(p => p.toLowerCase() === want)) product.score += 2;
+                        }
+                        // Storage – product has "storage" e.g. "128GB", "256GB"
+                        const wantStorage = userChoices["howmuchstoragedoyouneed"];
+                        if (wantStorage && product.storage) {
+                            if (product.storage === wantStorage) product.score += 1;
+                            else if (wantStorage === "512GB+" && (product.storage === "512GB" || product.storage.startsWith("512"))) product.score += 1;
+                        }
                     }
-                    if (userChoices["doyoupreferwindowsormacos"] && product.os === userChoices["doyoupreferwindowsormacos"]) {
-                        product.score += 1;
+
+                    if (selectedCategory === "laptop") {
+                        // Use case: Gaming, Work, School, Video Editing – products have priority[] e.g. ["gaming","performance"]
+                        const useCase = userChoices["whatwillyouusethelaptopfor"];
+                        if (useCase && product.priority) {
+                            const want = useCase.toLowerCase().replace(" ", "");
+                            if (product.priority.some(p => p.toLowerCase() === want)) product.score += 2;
+                            if (useCase === "Video Editing" && product.priority.includes("performance")) product.score += 2;
+                            if (useCase === "School" && (product.priority.includes("work") || product.priority.includes("battery"))) product.score += 1;
+                        }
+                        // RAM – product has "ram" e.g. "16GB"
+                        if (userChoices["howmuchramdoyouneed"] && product.ram === userChoices["howmuchramdoyouneed"]) {
+                            product.score += 1;
+                        }
+                        // Screen size – product has "screen_size" e.g. "15.6-inch OLED"
+                        const wantSize = userChoices["whatisyourpreferredscreensize"];
+                        if (wantSize && product.screen_size && wantSize !== "No Preference") {
+                            if (product.screen_size.includes(wantSize.replace("-inch", ""))) product.score += 1;
+                        }
+                        // Battery importance – product has "battery_life" e.g. "20 hours"
+                        const batteryImportance = userChoices["howimportantisbatterylifetoyou"];
+                        if (batteryImportance === "Very Important" && product.battery_life) {
+                            const hours = parseInt(product.battery_life, 10);
+                            if (!isNaN(hours) && hours >= 15) product.score += 1;
+                        }
                     }
-                    if (userChoices["howimportantisbatterylifetoyou"] && product.batteryLife === userChoices["howimportantisbatterylifetoyou"]) {
-                        product.score += 1;
+
+                    if (selectedCategory === "smartwatch") {
+                        // Use case: Fitness, Notifications, Calls, All of the above – products have priority[] e.g. ["health","notifications"]
+                        const useCase = userChoices["whatisyourmainusecase"];
+                        if (useCase && product.priority) {
+                            if (useCase === "Fitness" && (product.priority.includes("fitness") || product.priority.includes("health"))) product.score += 2;
+                            if (useCase === "Notifications" && product.priority.includes("notifications")) product.score += 2;
+                            if (useCase === "All of the above") product.score += 1;
+                        }
+                        // GPS – product has features[] e.g. ["ECG","Blood Oxygen","GPS"]
+                        if (userChoices["doyouneedgps"] === "Yes" && product.features && product.features.some(f => f.toUpperCase() === "GPS")) {
+                            product.score += 1;
+                        }
+                        // LTE
+                        if (userChoices["doyouwantlteconnectivity"] === "Yes" && product.features && product.features.some(f => f.toUpperCase() === "LTE")) {
+                            product.score += 1;
+                        }
+                        // Battery length – product has "battery" e.g. "18 hours", "14 days"
+                        const wantBattery = userChoices["howlongshouldthebatterylast"];
+                        if (wantBattery && wantBattery !== "No Preference" && product.battery) {
+                            if (wantBattery === "1 week" && product.battery.includes("days")) product.score += 1;
+                            if (wantBattery === "2-3 days" && (product.battery.includes("days") || product.battery.includes("80"))) product.score += 1;
+                            if (wantBattery === "1 day" && product.battery.includes("hours")) product.score += 1;
+                        }
                     }
                 });
 
